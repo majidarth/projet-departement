@@ -20,6 +20,9 @@ def blackscholes_mc(t, T, n_paths, S0, vol, r, gammma, d):
     paths = np.multiply(S0,(np.exp((r-1/2*vol**2)*dt + vol*np.dot(np.linalg.cholesky(gamma),dW))).T)
     return paths
 
+def sigma_barre(sigma,T,t):
+    return np.sqrt((T-t)*np.matmul(np.transpose(sigma), np.matmul(gamma,sigma))/(d**2))
+
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
