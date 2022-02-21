@@ -1,4 +1,4 @@
-import torch as nn
+#import torch as nn
 import numpy as np
 import matplotlib as plt
 from scipy.stats import norm
@@ -14,10 +14,10 @@ gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
 
 #Fonctions
 
-def blackscholes_mc(t, T, n_paths, S0, vol, r, gammma):
+def blackscholes_mc(t, T, n_paths, S0, vol, r, gammma, d):
     dt = T-t
-    G = np.random.randn(n_paths)
-    paths = S0 * np.exp((r-1/2*vol**2)*dt + vol*np.dot( np.linalg.cholesky(gamma),G))
+    dW = np.sqrt(dt)*np.random.multivariate_normal(np.zeros(d), np.identity(d), n_paths).T
+    paths = np.multiply(S0,(np.exp((r-1/2*vol**2)*dt + vol*np.dot(np.linalg.cholesky(gamma),dW))).T)
     return paths
 
 N = norm.cdf
@@ -28,4 +28,4 @@ def Call_BS(S,K,T,t,r,sigma):
   return S * N(d1) - K * np.exp(-r*(T-t)) * N(d2)
 
 if __name__ == '__main__':
-    blackscholes_mc(0,1,100, S0, vol, r, gamma)
+    print(blackscholes_mc(0,1,1, S0, vol, r, gamma, d))
