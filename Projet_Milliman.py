@@ -1,6 +1,6 @@
 #import torch as nn
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 # Constantes du problème
