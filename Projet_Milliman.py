@@ -25,7 +25,7 @@ N = norm.cdf
 def Call_BS(S,K,T,t,r,sigma):
   d1 = (np.log(S/K) + (r + sigma**2/2)*T) / (sigma*np.sqrt(T))
   d2 = d1 - sigma * np.sqrt(T)
-  return S * N(d1) - K * np.exp(-r*(T-t))* N(d2)
+  return S * N(d1) - K * np.exp(-r*(T-t)) * N(d2)
 
 if __name__ == '__main__':
     blackscholes_mc(0,1,100, S0, vol, r, gamma)
