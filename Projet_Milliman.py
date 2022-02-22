@@ -16,7 +16,7 @@ T = 1.
 t = 0.5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 6 #degree of polynomial regression
+deg = 4 #degree of polynomial regression
 
 #Fonctions
 
@@ -30,7 +30,10 @@ def sigma_barre(sigma,T,t):
     return np.sqrt((T-t)*np.matmul(np.transpose(sigma*np.ones(d)), np.matmul(gamma,sigma*np.ones(d)))/(d**2))
 
 def F(t,S,sigma,T,r):
-    return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t))) * np.exp(-sigma/2*(T-t))
+    if len(S.shape) == 1:
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t))) * np.exp(-sigma/2*(T-t))
+    else:
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1)) * np.exp(-sigma/2*(T-t))
 
 N = norm.cdf
 
@@ -58,7 +61,7 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t)
     
-    poly = PolynomialFeatures(degree=6)
+    poly = PolynomialFeatures(degree=deg)
     poly_variables = poly.fit_transform(S_t)
 
     regression = linear_model.LinearRegression()
@@ -101,13 +104,10 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
 if __name__ == '__main__':
     S_t = blackscholes_mc( 0, 0.5, 100000, S0, vol, r, gamma, d)
-    true_value = np.zeros_like(S_t)
-    
-    for i in range (len(true_value)):
-        true_value[i] = Call_BS( F(t,S_t[i],vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
-    true_value = true_value[:,0]
+    true_value = Call_BS( F(t,S_t,vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
     
     #polynomial regression
+    print("hello")
     model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 100000, 100,deg)
     poly = PolynomialFeatures(degree=deg)
     S_t_ = poly.fit_transform(S_t)
