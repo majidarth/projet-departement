@@ -103,12 +103,11 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
     
 if __name__ == '__main__':
-    S_t = blackscholes_mc( 0, 0.5, 100000, S0, vol, r, gamma, d)
+    S_t = blackscholes_mc( 0, 0.5, 1000000, S0, vol, r, gamma, d)
     true_value = Call_BS( F(t,S_t,vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
     
     #polynomial regression
-    print("hello")
-    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 100000, 100,deg)
+    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 10000, 1000,deg)
     poly = PolynomialFeatures(degree=deg)
     S_t_ = poly.fit_transform(S_t)
     poly_value = model_poly.predict(S_t_)
@@ -128,5 +127,8 @@ if __name__ == '__main__':
     plt.plot(x,x, 'r')
     plt.xlabel("Deepl etimation of V_t")
     plt.ylabel("True of V_t according to BS model")
-        
+    
+    
+    print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
+    print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
 
