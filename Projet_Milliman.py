@@ -10,6 +10,7 @@ from tensorflow import keras
 # Constantes du problème
 d = 3
 S0 = np.ones(d) * 100.
+K = 100
 r = 0.1
 vol = 0.2
 T = 1.
@@ -31,29 +32,29 @@ def sigma_barre(sigma,T,t):
 
 def F(t,S,sigma,T,r):
     if len(S.shape) == 1:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t))) * np.exp(-sigma/2*(T-t))
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))
     else:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1)) * np.exp(-sigma/2*(T-t))
-
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
   d1 = (np.log(S/K) + (r + sigma**2/2)*(T-t)) / (sigma*np.sqrt(T-t))
-  d2 = d1 - sigma*(T-t)
+  d2 = d1 - sigma * np.sqrt(T-t)
   return S * N(d1) - K * np.exp(-r*(T-t)) * N(d2)
 
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt)
+    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) 
     root_gamma = np.linalg.cholesky(gamma)
-    coeff = np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     S_t = S_t.T
-    S_T = S_t[:, :, np.newaxis]*coeff
+    S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     payoff = np.exp(-r*(T-t)) * np.maximum(np.prod(S_T, axis = 0 )**(1/d) - K, 0)
     res = 1/nnested * payoff.sum(axis = 1)
     return res
 
+
+    
 
 def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
@@ -70,10 +71,10 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
-              
-              
+    
+    
     X_train_full = S_t
-
+    
     #normalize input
     mX = np.mean(X_train_full)
     sX = np.std(X_train_full)
@@ -101,14 +102,13 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
     
 if __name__ == '__main__':
-    S_t = blackscholes_mc( 0, 0.5, 1000000, S0, vol, r, gamma, d)
-    print(S_t)
-    """"
-
-    true_value = Call_BS( F(t,S_t,vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
+    S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
     #polynomial regression
-    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 10000, 1000,deg)
+    npaths = 1000
+    nnested = 1000
+    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
     poly = PolynomialFeatures(degree=deg)
     S_t_ = poly.fit_transform(S_t)
     poly_value = model_poly.predict(S_t_)
@@ -121,8 +121,9 @@ if __name__ == '__main__':
     plt.show()
     
     #deepl
-    model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 100000)
-    deepl_value = model_DL.predict((S_t - mean) / std)
+    npaths = 100000
+    model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths)
+    deepl_value = model_DL((S_t - mean) / std).numpy()
     plt.scatter(deepl_value, true_value)
     x = np.linspace(0,100,10000)
     plt.plot(x,x, 'r')
@@ -132,4 +133,3 @@ if __name__ == '__main__':
     
     print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
     print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
-    """
