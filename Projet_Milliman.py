@@ -17,7 +17,7 @@ T = 1.
 t = 0.5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 3 #degree of polynomial regression
+deg = 4 #degree of polynomial regression
 
 #Fonctions
 
@@ -38,14 +38,14 @@ def F(t,S,sigma,T,r):
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
-  d1 = (np.log(S/K) + (r + sigma**2/2)*T) / (sigma*np.sqrt(T))
-  d2 = d1 - sigma * np.sqrt(T)
+  d1 = (np.log(S/K) + (r + sigma**2/2)*(T-t)) / (sigma*np.sqrt(T-t))
+  d2 = d1 - sigma * np.sqrt(T-t)
   return S * N(d1) - K * np.exp(-r*(T-t)) * N(d2)
 
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*tf.sqrt(dt) 
+    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) 
     root_gamma = np.linalg.cholesky(gamma)
     S_t = S_t.T
     S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
