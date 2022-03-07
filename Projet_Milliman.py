@@ -10,6 +10,7 @@ from tensorflow import keras
 # Constantes du problème
 d = 3
 S0 = np.ones(d) * 100.
+K = 100
 r = 0.1
 vol = 0.2
 T = 1.
@@ -45,9 +46,8 @@ def Call_BS(S,K,T,t,r,sigma):
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) * np.sqrt(dt)
+    dW = np.random.randn(len(S_t), d, nnested)*tf.sqrt(dt) 
     root_gamma = np.linalg.cholesky(gamma)
-    coeff = np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     S_t = S_t.T
     S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     payoff = np.exp(-r*(T-t)) * np.maximum(np.prod(S_T, axis = 0 )**(1/d) - K, 0)
@@ -72,10 +72,10 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
-              
-              
+    
+    
     X_train_full = S_t
-
+    
     #normalize input
     mX = np.mean(X_train_full)
     sX = np.std(X_train_full)
@@ -104,10 +104,12 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
 if __name__ == '__main__':
     S_t = blackscholes_mc( 0, 0.5, 1000000, S0, vol, r, gamma, d)
-    true_value = Call_BS( F(t,S_t,vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, t, r, sigma_barre(vol,T,t))
     
     #polynomial regression
-    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 10000, 1000,deg)
+    npaths = 1000
+    nnested = 1000
+    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
     poly = PolynomialFeatures(degree=deg)
     S_t_ = poly.fit_transform(S_t)
     poly_value = model_poly.predict(S_t_)
@@ -120,8 +122,9 @@ if __name__ == '__main__':
     plt.show()
     
     #deepl
-    model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, 100, 100000)
-    deepl_value = model_DL.predict((S_t - mean) / std)
+    npaths = 100000
+    model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths)
+    deepl_value = model_DL((S_t - mean) / std).numpy()
     plt.scatter(deepl_value, true_value)
     x = np.linspace(0,100,10000)
     plt.plot(x,x, 'r')
