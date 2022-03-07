@@ -38,24 +38,22 @@ def F(t,S,sigma,T,r):
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
-  d1 = (np.log(S/K) + (r + sigma**2/2)*T) / (sigma*np.sqrt(T))
-  d2 = d1 - sigma * np.sqrt(T)
+  d1 = (np.log(S/K) + (r + sigma**2/2)*(T-t)) / (sigma*np.sqrt(T-t))
+  d2 = d1 - sigma*(T-t)
   return S * N(d1) - K * np.exp(-r*(T-t)) * N(d2)
 
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) * np.sqrt(dt)
+    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt)
     root_gamma = np.linalg.cholesky(gamma)
     coeff = np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     S_t = S_t.T
-    S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
+    S_T = S_t[:, :, np.newaxis]*coeff
     payoff = np.exp(-r*(T-t)) * np.maximum(np.prod(S_T, axis = 0 )**(1/d) - K, 0)
     res = 1/nnested * payoff.sum(axis = 1)
     return res
 
-
-    
 
 def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
@@ -104,6 +102,9 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
 if __name__ == '__main__':
     S_t = blackscholes_mc( 0, 0.5, 1000000, S0, vol, r, gamma, d)
+    print(S_t)
+    """"
+
     true_value = Call_BS( F(t,S_t,vol,T,r), 100, T, t, r, sigma_barre(vol,T,t))
     
     #polynomial regression
@@ -131,4 +132,4 @@ if __name__ == '__main__':
     
     print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
     print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
-
+    """
