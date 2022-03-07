@@ -17,7 +17,7 @@ T = 1.
 t = 0.5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 4 #degree of polynomial regression
+deg = 3 #degree of polynomial regression
 
 #Fonctions
 
@@ -32,10 +32,9 @@ def sigma_barre(sigma,T,t):
 
 def F(t,S,sigma,T,r):
     if len(S.shape) == 1:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t))) * np.exp(-sigma/2*(T-t))
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))
     else:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1)) * np.exp(-sigma/2*(T-t))
-
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
@@ -103,8 +102,8 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
     
 if __name__ == '__main__':
-    S_t = blackscholes_mc( 0, 0.5, 1000000, S0, vol, r, gamma, d)
-    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, t, r, sigma_barre(vol,T,t))
+    S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
     #polynomial regression
     npaths = 1000
