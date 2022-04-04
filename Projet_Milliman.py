@@ -10,7 +10,7 @@ import statsmodels.api as sm
 import scipy
 
 # Constantes du problème
-d = 3
+d = 2
 S0 = np.ones(d) * 100.
 K = 100
 r = 0.1
@@ -19,7 +19,7 @@ T = 1.
 t = 0.5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 4 #degree of polynomial regression
+deg = 5 #degree of polynomial regression
 
 #Fonctions
 
@@ -47,16 +47,13 @@ def Call_BS(S,K,T,t,r,sigma):
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) 
+    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt)
     root_gamma = np.linalg.cholesky(gamma)
     S_t = S_t.T
     S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     payoff = np.exp(-r*(T-t)) * np.maximum(np.prod(S_T, axis = 0 )**(1/d) - K, 0)
     res = 1/nnested * payoff.sum(axis = 1)
     return res
-
-
-    
 
 def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
@@ -73,7 +70,6 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
-    
     
     X_train_full = S_t
     
@@ -103,6 +99,7 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     return model, mX, sX
     
 
+
     
 def sanity_check():
     S_t = blackscholes_mc( 0, t, 10000, S0, vol, r, gamma, d)
@@ -111,8 +108,7 @@ def sanity_check():
     plt.hist([true_value,expected_value] , range = (np.min(true_value), np.max(true_value)), bins = 10, color = ['yellow', 'blue'],edgecolor = 'red')
     plt.show()
     
-    sm.qqplot(expected_value, true_value)
-    sm.qqplot(expected_value, line='45')
+    
     
 
     
