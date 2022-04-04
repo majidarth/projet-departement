@@ -106,10 +106,21 @@ def sanity_check():
     true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     expected_value = nested_mc_expect(t, T, vol, r, gamma, d, K, 1000, S_t)
     plt.hist([true_value,expected_value] , range = (np.min(true_value), np.max(true_value)), bins = 10, color = ['yellow', 'blue'],edgecolor = 'red')
+    plt.title("Histogramme valeur. True value (en jaune) et Monte Carlo (en bleu)")
     plt.show()
     
+    H,X1 = np.histogram( true_value, bins = 100, normed = True )
+    dx = X1[1] - X1[0]
+    F1 = np.cumsum(H)*dx
     
+    H,X1 = np.histogram( expected_value, bins = 100, normed = True )
+    dx = X1[1] - X1[0]
+    F2 = np.cumsum(H)*dx
     
+    plt.scatter(F1, F2)
+    plt.plot( np.linspace(0,1,100), np.linspace(0,1,100), color = 'c')
+    plt.title('Q-Q plot')
+    plt.show()
 
     
 if __name__ == '__main__':
