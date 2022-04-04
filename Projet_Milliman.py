@@ -103,9 +103,9 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     
 def sanity_check():
     S_t = blackscholes_mc( 0, t, 10000, S0, vol, r, gamma, d)
-    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) 
-    expected_value = nested_mc_expect(t, T, vol, r, gamma, d, K, 1000, S_t)* np.exp(-r*(T-t))
-    plt.hist([true_value,expected_value] , range = (np.min(true_value), np.max(true_value)), bins = 100, color = ['yellow', 'blue'],edgecolor = 'red')
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
+    expected_value = nested_mc_expect(t, T, vol, r, gamma, d, K, 1000, S_t)
+    plt.hist([true_value,expected_value] , range = (np.min(true_value), np.max(true_value)), bins = 50, color = ['yellow', 'blue'],edgecolor = 'red')
     plt.title("Histogramme valeur. True value (en jaune) et Monte Carlo (en bleu)")
     plt.show()
     
