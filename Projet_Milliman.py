@@ -8,7 +8,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 # Constantes du problème
-d = 3
+d = 2
 S0 = np.ones(d) * 100.
 K = 100
 r = 0.1
@@ -17,7 +17,7 @@ T = 1.
 t = 0.5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 4 #degree of polynomial regression
+deg = 5 #degree of polynomial regression
 
 #Fonctions
 
@@ -45,16 +45,13 @@ def Call_BS(S,K,T,t,r,sigma):
 
 def nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t):
     dt = T-t
-    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt) 
+    dW = np.random.randn(len(S_t), d, nnested)*np.sqrt(dt)
     root_gamma = np.linalg.cholesky(gamma)
     S_t = S_t.T
     S_T = S_t[:, :, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(root_gamma,dW))
     payoff = np.exp(-r*(T-t)) * np.maximum(np.prod(S_T, axis = 0 )**(1/d) - K, 0)
     res = 1/nnested * payoff.sum(axis = 1)
     return res
-
-
-    
 
 def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
@@ -71,7 +68,6 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
-    
     
     X_train_full = S_t
     
@@ -100,15 +96,14 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     model.fit(X_train, Y_train, epochs=50, batch_size=128, validation_data=(X_valid, Y_valid), verbose=True, callbacks=[early_stopping_cb])
     return model, mX, sX
     
-    
 if __name__ == '__main__':
-    S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
+    S_t = blackscholes_mc(0, t, 1000000, S0, vol, r, gamma, d)
     true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
     #polynomial regression
     npaths = 1000
     nnested = 1000
-    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
+    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested, deg)
     poly = PolynomialFeatures(degree=deg)
     S_t_ = poly.fit_transform(S_t)
     poly_value = model_poly.predict(S_t_)
@@ -129,7 +124,7 @@ if __name__ == '__main__':
     plt.plot(x,x, 'r')
     plt.xlabel("Deepl etimation of V_t")
     plt.ylabel("True of V_t according to BS model")
-    
+    plt.show()
     
     print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
     print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
