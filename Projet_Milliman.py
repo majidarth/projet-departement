@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
-import tensorflow as tf
-from tensorflow import keras
+#import tensorflow as tf
+#from tensorflow import keras
 import statsmodels.api as sm
 import scipy
 
@@ -23,20 +23,20 @@ deg = 5 #degree of polynomial regression
 
 #Fonctions
 
-def blackscholes_mc(t, T, n_paths, S0, vol, r, gammma, d):
+def blackscholes_mc(t, T, n_paths, S0, vol, r, gamma, d):
     dt = T-t
     dW = np.sqrt(dt)*np.random.multivariate_normal(np.zeros(d), np.identity(d), n_paths).T
     paths = S0[:, np.newaxis]* np.exp((r-1/2*vol**2)*dt + vol*np.dot(np.linalg.cholesky(gamma),dW))
     return paths.T
 
 def sigma_barre(sigma,T,t):
-    return np.sqrt((T-t)*np.matmul(np.transpose(sigma*np.ones(d)), np.matmul(gamma,sigma*np.ones(d)))/(d**2))
+    return np.sqrt(np.matmul(np.transpose(sigma*np.ones(d)), np.matmul(gamma,sigma*np.ones(d)))/(d**2))
 
 def F(t,S,sigma,T,r):
     if len(S.shape) == 1:
         return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))
     else:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))*np.exp(sigma_barre(sigma,T,t)**2/2*(T-t))
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
