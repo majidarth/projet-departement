@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
-#import tensorflow as tf
-#from tensorflow import keras
+import tensorflow as tf
+from tensorflow import keras
 import statsmodels.api as sm
 import scipy
 
@@ -19,6 +19,7 @@ T = 5.
 t = 0.1
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
+print(gamma)
 deg = 5 #degree of polynomial regression
 
 #Fonctions
@@ -34,7 +35,7 @@ def sigma_barre(sigma,T,t):
 
 def F(t,S,sigma,T,r):
     if len(S.shape) == 1:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))*np.exp(sigma**2/2*(T-t))
     else:
         return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))*np.exp(sigma_barre(sigma,T,t)**2/2*(T-t))
 N = norm.cdf
@@ -99,8 +100,6 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     return model, mX, sX
     
 
-
-    
 def sanity_check():
     S_t = blackscholes_mc( 0, t, 10000, S0, vol, r, gamma, d)
     true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
@@ -125,38 +124,22 @@ def sanity_check():
     
 if __name__ == '__main__':
     
-    
     sanity_check()
     
-    # S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
-    # true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
+    S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
-    # #polynomial regression
-    # npaths = 1000
-    # nnested = 1000
-    # model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
-    # poly = PolynomialFeatures(degree=deg)
-    # S_t_ = poly.fit_transform(S_t)
-    # poly_value = model_poly.predict(S_t_)
+    #polynomial regression
+    npaths = 1000
+    nnested = 1000
+    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
+    poly = PolynomialFeatures(degree=deg)
+    S_t_ = poly.fit_transform(S_t)
+    poly_value = model_poly.predict(S_t_)
     
-    # plt.scatter(poly_value, true_value)
-    # x = np.linspace(0,100,10000)
-    # plt.plot(x,x, 'r')
-    # plt.xlabel("Polynomial etimation of V_t")
-    # plt.ylabel("True of V_t according to BS model")
-    # plt.show()
-    
-    # #deepl
-    # npaths = 100000
-    # model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths)
-    # deepl_value = model_DL((S_t - mean) / std).numpy()
-    # plt.scatter(deepl_value, true_value)
-    # x = np.linspace(0,100,10000)
-    # plt.plot(x,x, 'r')
-    # plt.xlabel("Deepl etimation of V_t")
-    # plt.ylabel("True of V_t according to BS model")
-    
-    
-    # print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
-    # print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
-
+    plt.scatter(poly_value, true_value)
+    x = np.linspace(0,100,10000)
+    plt.plot(x,x, 'r')
+    plt.xlabel("Polynomial etimation of V_t")
+    plt.ylabel("True of V_t according to BS model")
+    plt.show()
