@@ -8,18 +8,18 @@ import tensorflow as tf
 from tensorflow import keras
 import statsmodels.api as sm
 import scipy
+import seaborn as sns
 
 # Constantes du problème
-d = 2
+d = 10
 S0 = np.ones(d) * 100.
 K = 100
 r = 0.1
 vol = 0.2
-T = 5.
-t = 0.1
+T = 1.
+t = .5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-print(gamma)
 deg = 5 #degree of polynomial regression
 
 #Fonctions
@@ -35,9 +35,10 @@ def sigma_barre(sigma,T,t):
 
 def F(t,S,sigma,T,r):
     if len(S.shape) == 1:
-        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))*np.exp(sigma**2/2*(T-t))
+        return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t)))*np.exp(sigma_barre(sigma,T,t)**2/2*(T-t))
     else:
         return np.exp(np.mean(np.log(S) + (r - pow(sigma,2)/2)*(T-t),axis =1))*np.exp(sigma_barre(sigma,T,t)**2/2*(T-t))
+
 N = norm.cdf
 
 def Call_BS(S,K,T,t,r,sigma):
@@ -71,7 +72,7 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
-    
+
     X_train_full = S_t
     
     #normalize input
@@ -102,9 +103,9 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
 
 def sanity_check():
     S_t = blackscholes_mc( 0, t, 10000, S0, vol, r, gamma, d)
-    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
-    expected_value = nested_mc_expect(t, T, vol, r, gamma, d, K, 1000, S_t)
-    plt.hist([true_value,expected_value] , range = (np.min(true_value), np.max(true_value)), bins = 50, color = ['yellow', 'blue'],edgecolor = 'red')
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, t, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
+    expected_value = nested_mc_expect(t, T, vol, r, gamma, d, K, 100, S_t)
+    plt.hist([true_value,expected_value] , range = (min(np.min(true_value),np.min(expected_value)) , max(np.max(true_value),np.max(expected_value))), bins = 50, color = ['yellow', 'blue'],edgecolor = 'red')
     plt.title("Histogramme valeur. True value (en jaune) et Monte Carlo (en bleu)")
     plt.show()
     
@@ -112,34 +113,61 @@ def sanity_check():
     dx = X1[1] - X1[0]
     F1 = np.cumsum(H)*dx
     
-    H,X1 = np.histogram( expected_value, bins = 100, normed = True )
-    dx = X1[1] - X1[0]
+    H,X2 = np.histogram( expected_value, bins = 100, normed = True )
+    dx = X2[1] - X2[0]
     F2 = np.cumsum(H)*dx
     
     plt.scatter(F1, F2)
     plt.plot( np.linspace(0,1,100), np.linspace(0,1,100), color = 'c')
     plt.title('Q-Q plot')
     plt.show()
-
+    
+    sns.kdeplot(expected_value)
+    sns.kdeplot(true_value)
+    plt.show()
     
 if __name__ == '__main__':
     
-    sanity_check()
+    #sanity_check()
     
     S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
-    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
+    true_value = Call_BS( F(t,S_t,vol,T,r), K, T, t, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
     #polynomial regression
-    npaths = 1000
-    nnested = 1000
-    model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
-    poly = PolynomialFeatures(degree=deg)
-    S_t_ = poly.fit_transform(S_t)
-    poly_value = model_poly.predict(S_t_)
+    # npaths = 10000
+    # nnested = 100
+    # model_poly = polynomial_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
+    # poly = PolynomialFeatures(degree=deg)
+    # S_t_ = poly.fit_transform(S_t)
+    # poly_value = model_poly.predict(S_t_)
     
-    plt.scatter(poly_value, true_value)
-    x = np.linspace(0,100,10000)
-    plt.plot(x,x, 'r')
-    plt.xlabel("Polynomial etimation of V_t")
-    plt.ylabel("True of V_t according to BS model")
-    plt.show()
+    # plt.scatter(poly_value, true_value)
+    # x = np.linspace(0,100,10000)
+    # plt.plot(x,x, 'r')
+    # plt.xlabel("Polynomial etimation of V_t")
+    # plt.ylabel("True of V_t according to BS model")
+    # plt.show()
+    
+    #deepl
+    #npaths = 10000
+    #model_DL, mean, std = deePL_reg(0.5, 1 , S0, r, gamma, vol, d, K, npaths)
+    #deepl_value = model_DL((S_t - mean) / std).numpy()
+    #plt.scatter(deepl_value, true_value)
+    #x = np.linspace(0,100,10000)
+    #plt.plot(x,x, 'r')
+    #plt.xlabel("Deepl etimation of V_t")
+    #plt.ylabel("True value of V_t according to BS model")
+    #plt.show()
+    
+    #sns.kdeplot(true_value)
+    #sns.kdeplot(deepl_value.T[0])
+    #plt.show()
+
+    
+    #print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
+    #print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
+    
+    #Calcul de la valeur initiale du portefeuille :
+    V0 = Call_BS(F(t,S0,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,0))*np.exp(-r*T)
+    #Calcul de la VaR:
+    print("Value at risk de 5%:",-np.quantile(true_value - V0, 0.05))
