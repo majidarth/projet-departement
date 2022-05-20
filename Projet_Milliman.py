@@ -3,15 +3,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.feature_selection import SequentialFeatureSelector
+from sklearn.feature_selection import RFE
 from sklearn import linear_model
 import tensorflow as tf
 from tensorflow import keras
+import keras_tuner as kt
 import statsmodels.api as sm
 import scipy
 import seaborn as sns
 
 # Constantes du problème
-d = 10
+d = 3
 S0 = np.ones(d) * 100.
 K = 100
 r = 0.1
@@ -20,7 +23,20 @@ T = 1.
 t = .5
 rho = 0.5
 gamma = rho*np.ones((d,d)) + (1-rho)* np.identity(d)
-deg = 5 #degree of polynomial regression
+deg = 10 #degree of polynomial regression
+
+
+class MyHyperModel(kt.HyperModel):
+  def build(self, hp):
+    model = keras.Sequential()
+    for i in range(hp.Int('num_of_layers',2,15)):         
+        #providing range for number of neurons in hidden layers
+        model.add(keras.layers.Dense(units=hp.Int('num_of_neurons'+ str(i),min_value=8,max_value=256,step=32),
+                                    activation='relu'))
+    model.add(keras.layers.Dense(1, activation='relu'))
+    model.compile(loss=keras.losses.MeanSquaredError(), optimizer=keras.optimizers.Adam(learning_rate=0.001))
+    return model
+
 
 #Fonctions
 
@@ -69,6 +85,26 @@ def polynomial_reg(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
     model = regression.fit(poly_variables, V_t)
     return model
 
+def polynomial_reg_sfs(t, T , S0, r, gamma, vol,  d, K, n_paths, nnested, deg):
+    S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
+    V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, nnested, S_t)
+    
+    poly = PolynomialFeatures(degree=deg)
+    poly_variables = poly.fit_transform(S_t)
+
+    regression = linear_model.LinearRegression()
+    
+    
+    sfs = RFE(regression)
+    sfs = sfs.fit(poly_variables, V_t)
+    
+    
+    poly_variables_sfs = sfs.transform(poly_variables)
+    print(poly_variables.shape, "kglugvjhvhjv")
+    model = regression.fit(poly_variables_sfs, V_t)
+    return model, sfs
+
+
 def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
     V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
@@ -100,6 +136,32 @@ def deePL_reg(t, T , S0, r, gamma, vol,  d, K, n_paths):
     model.fit(X_train, Y_train, epochs=50, batch_size=128, validation_data=(X_valid, Y_valid), verbose=True, callbacks=[early_stopping_cb])
     return model, mX, sX
     
+def deePL_reg_tune(t, T , S0, r, gamma, vol,  d, K, n_paths):
+    S_t = blackscholes_mc(0, t, n_paths, S0, vol, r, gamma, d)
+    V_t = nested_mc_expect(t, T, vol, r, gamma, d, K, 1, S_t)
+    
+
+    X_train_full = S_t
+    
+    #normalize input
+    mX = np.mean(X_train_full)
+    sX = np.std(X_train_full)
+    X_train_full = ((X_train_full - mX) / sX)
+    Y_train_full = (V_t)
+
+    # split the dataset to a training and a validation set
+    train_size = int(len(X_train_full)*0.75)
+    X_train = X_train_full[:train_size]
+    X_valid = X_train_full[train_size:]
+    Y_train = Y_train_full[:train_size]
+    Y_valid = Y_train_full[train_size:]
+
+    early_stopping_cb = keras.callbacks.EarlyStopping(patience=4, min_delta=1e-5, restore_best_weights=True)
+
+    tuner = kt.RandomSearch(MyHyperModel(),objective='val_loss',max_trials=5, overwrite=True)
+    tuner.search(X_train, Y_train, epochs=50, batch_size=512, validation_data=(X_valid, Y_valid), callbacks=[early_stopping_cb], verbose=True)
+    return tuner.get_best_models()[0], mX, sX
+
 
 def sanity_check():
     S_t = blackscholes_mc( 0, t, 10000, S0, vol, r, gamma, d)
@@ -146,6 +208,22 @@ if __name__ == '__main__':
     # plt.plot(x,x, 'r')
     # plt.xlabel("Polynomial etimation of V_t")
     # plt.ylabel("True of V_t according to BS model")
+    #plt.show()
+    
+    #polynomial regression sfs
+    # npaths = 1000
+    # nnested = 10
+    # model_poly, sfs = polynomial_reg_sfs(0.5, 1 , S0, r, gamma, vol, d, K, npaths, nnested,deg)
+    # poly = PolynomialFeatures(degree=deg)
+    # S_t_ = poly.fit_transform(S_t)
+    # S_t_ = S_t_[:,sfs.get_support(indices=True)]
+    # poly_value = model_poly.predict(S_t_)
+    
+    # plt.scatter(poly_value, true_value)
+    # x = np.linspace(0,100,10000)
+    # plt.plot(x,x, 'r')
+    # plt.xlabel("Polynomial etimation of V_t")
+    # plt.ylabel("True of V_t according to BS model")
     # plt.show()
     
     #deepl
@@ -163,6 +241,22 @@ if __name__ == '__main__':
     #sns.kdeplot(deepl_value.T[0])
     #plt.show()
 
+    #deepl tune
+    npaths = 500000
+    model_DL, mean, std = deePL_reg_tune(0.5, 1 , S0, r, gamma, vol, d, K, npaths)
+    deepl_value = model_DL((S_t - mean) / std).numpy()
+    plt.scatter(deepl_value, true_value)
+    x = np.linspace(0,100,10000)
+    plt.plot(x,x, 'r')
+    plt.xlabel("Deepl etimation of V_t")
+    plt.ylabel("True of V_t according to BS model")
+    plt.show()
+    
+    print(model_DL.summary())
+    
+    sns.kdeplot(true_value)
+    sns.kdeplot(deepl_value.T[0])
+    plt.show()
     
     #print(f"Ecart relatif entre deepl et BS: {np.linalg.norm((deepl_value.T) - true_value)/ np.linalg.norm(true_value):.5f}")
     #print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
