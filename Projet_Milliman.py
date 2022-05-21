@@ -130,7 +130,7 @@ if __name__ == '__main__':
     
     #sanity_check()
     
-    S_t = blackscholes_mc( 0, t, 1000000, S0, vol, r, gamma, d)
+    S_t = blackscholes_mc( 0, t, 100000, S0, vol, r, gamma, d)
     true_value = Call_BS( F(t,S_t,vol,T,r), K, T, t, 0, sigma_barre(vol,T,t)) * np.exp(-r*(T-t))
     
     #polynomial regression
@@ -168,6 +168,26 @@ if __name__ == '__main__':
     #print(f"Ecart relatif entre poly et BS: {np.linalg.norm(poly_value - true_value)/ np.linalg.norm(true_value):.5f}")
     
     #Calcul de la valeur initiale du portefeuille :
-    V0 = Call_BS(F(t,S0,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,0))*np.exp(-r*T)
+    V0 = Call_BS(F(0,S0,vol,T,r), K, T, 0, 0, sigma_barre(vol,T,0))*np.exp(-r*T)
+    print(V0)
+    
     #Calcul de la VaR:
-    print("Value at risk de 5%:",-np.quantile(true_value - V0, 0.05))
+    print("Value at risk de 5% mc:",np.quantile(V0-true_value, 0.95))
+    
+    varg = np.quantile(np.random.normal(size=1000000),0.95)
+
+    h = F(0,S0,vol,t,r)*np.exp(sigma_barre(vol,t,0)**2/2*(T-2*t)+sigma_barre(vol,t,0)*np.sqrt(t)*(-varg) + (r-vol**2/2)*(T-t))
+    Vt = np.exp(-r*(T-t))*Call_BS(h, K, T, t, 0, sigma_barre(vol, T, t))
+    
+    print("Value at risk de 5% formule fermée:",V0-Vt)
+        
+    x = [i/1000 for i in range(1001)]
+    #plt.plot(x,np.quantile(V0-true_value,x))
+    g = np.quantile(np.random.normal(size=1000000),x)
+    
+    
+    plt.plot(x,[V0 - np.exp(-r*(T-t))*Call_BS(F(0,S0,vol,t,r)*np.exp(sigma_barre(vol,t,0)**2/2*(T-2*t)+sigma_barre(vol,t,0)*np.sqrt(t)*(-varg) + (r-vol**2/2)*(T-t)), K, T, t, 0, sigma_barre(vol, T, t)) for varg in g])
+    plt.title(r'Value at Risk de niveau $1-\alpha$')
+    plt.xlabel(r'$1-\alpha$')
+    plt.ylabel(r'VaR($1-\alpha$)')
+    plt.show()
